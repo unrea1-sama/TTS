@@ -1,0 +1,111 @@
+[submodule "01 Text Analysis/G2P/g2p"]
+	path = 01 Text Analysis/G2P/g2p
+	url = https://github.com/Kyubyong/g2p.git
+[submodule "01 Text Analysis/G2P/sequitur-g2p"]
+	path = 01 Text Analysis/G2P/sequitur-g2p
+	url = https://github.com/sequitur-g2p/sequitur-g2p.git
+[submodule "01 Text Analysis/G2P/g2pM"]
+	path = 01 Text Analysis/G2P/g2pM
+	url = https://github.com/kakaobrain/g2pM.git
+[submodule "01 Text Analysis/Prosody Structure Prediction/pytorch-crf"]
+	path = 01 Text Analysis/Prosody Structure Prediction/pytorch-crf
+	url = https://github.com/unrea1-sama/pytorch-crf.git
+[submodule "01 Text Analysis/Prosody Structure Prediction/NCRFpp"]
+	path = 01 Text Analysis/Prosody Structure Prediction/NCRFpp
+	url = https://github.com/jiesutd/NCRFpp.git
+[submodule "01 Text Analysis/Text Normalization/FlatTN"]
+	path = 01 Text Analysis/Text Normalization/FlatTN
+	url = https://github.com/thuhcsi/FlatTN.git
+[submodule "02 Acoustic Model/Autoregressive/pytorch-crf"]
+	path = 02 Acoustic Model/Autoregressive/pytorch-crf
+	url = https://github.com/unrea1-sama/pytorch-crf.git
+[submodule "02 Acoustic Model/Autoregressive/tacotron2"]
+	path = 02 Acoustic Model/Autoregressive/tacotron2
+	url = https://github.com/NVIDIA/tacotron2.git
+[submodule "02 Acoustic Model/Autoregressive/tacotron_pytorch"]
+	path = 02 Acoustic Model/Autoregressive/tacotron_pytorch
+	url = https://github.com/r9y9/tacotron_pytorch.git
+[submodule "02 Acoustic Model/None-autoregressive/glow-tts"]
+	path = 02 Acoustic Model/None-autoregressive/glow-tts
+	url = https://github.com/jaywalnut310/glow-tts.git
+[submodule "02 Acoustic Model/None-autoregressive/vits"]
+	path = 02 Acoustic Model/None-autoregressive/vits
+	url = https://github.com/jaywalnut310/vits.git
+[submodule "02 Acoustic Model/None-autoregressive/FastSpeech"]
+	path = 02 Acoustic Model/None-autoregressive/FastSpeech
+	url = https://github.com/xcmyz/FastSpeech.git
+[submodule "02 Acoustic Model/None-autoregressive/FastSpeech2"]
+	path = 02 Acoustic Model/None-autoregressive/FastSpeech2
+	url = https://github.com/ming024/FastSpeech2.git
+[submodule "02 Acoustic Model/Autoregressive/WaveRNN"]
+	path = 02 Acoustic Model/Autoregressive/WaveRNN
+	url = https://github.com/fatchord/WaveRNN.git
+[submodule "03 Vocoder/cargan"]
+	path = 03 Vocoder/cargan
+	url = https://github.com/descriptinc/cargan.git
+[submodule "03 Vocoder/hifi-gan"]
+	path = 03 Vocoder/hifi-gan
+	url = https://github.com/jik876/hifi-gan.git
+[submodule "03 Vocoder/wavenet_vocoder"]
+	path = 03 Vocoder/wavenet_vocoder
+	url = https://github.com/r9y9/wavenet_vocoder.git
+[submodule "03 Vocoder/melgan-neurips"]
+	path = 03 Vocoder/melgan-neurips
+	url = https://github.com/descriptinc/melgan-neurips.git
+[submodule "01 Text Analysis/Prosody Structure Prediction/SpanPSP"]
+	path = 01 Text Analysis/Prosody Structure Prediction/SpanPSP
+	url = https://github.com/thuhcsi/SpanPSP.git
+[submodule "03 Vocoder/waveglow"]
+	path = 03 Vocoder/waveglow
+	url = https://github.com/NVIDIA/waveglow.git
+[submodule "02 Acoustic Model/None-autoregressive/DiffSinger"]
+	path = 02 Acoustic Model/None-autoregressive/DiffSinger
+	url = https://github.com/MoonInTheRiver/DiffSinger.git
+[submodule "04 Tools/pyrapt"]
+	path = 04 Tools/pyrapt
+	url = https://github.com/dgaspari/pyrapt.git
+[submodule "04 Tools/Parselmouth"]
+	path = 04 Tools/Parselmouth
+	url = https://github.com/YannickJadoul/Parselmouth.git
+[submodule "04 Tools/Montreal-Forced-Aligner"]
+	path = 04 Tools/Montreal-Forced-Aligner
+	url = https://github.com/MontrealCorpusTools/Montreal-Forced-Aligner.git
+[submodule "04 Tools/TextGridTools"]
+	path = 04 Tools/TextGridTools
+	url = https://github.com/hbuschme/TextGridTools.git
+[submodule "04 Tools/Python-Wrapper-for-World-Vocoder"]
+	path = 04 Tools/Python-Wrapper-for-World-Vocoder
+	url = https://github.com/JeremyCCHsu/Python-Wrapper-for-World-Vocoder.git
+[submodule "02 Acoustic Model/None-autoregressive/DiffGAN-TTS"]
+	path = 02 Acoustic Model/None-autoregressive/DiffGAN-TTS
+	url = https://github.com/keonlee9420/DiffGAN-TTS.git
+[submodule "03 Vocoder/wavegrad"]
+	path = 03 Vocoder/wavegrad
+	url = https://github.com/lmnt-com/wavegrad.git
+[submodule "02 Acoustic Model/None-autoregressive/STYLER"]
+	path = 02 Acoustic Model/None-autoregressive/STYLER
+	url = https://github.com/keonlee9420/STYLER.git
+[submodule "02 Acoustic Model/None-autoregressive/WaveGrad2"]
+	path = 02 Acoustic Model/None-autoregressive/WaveGrad2
+	url = https://github.com/keonlee9420/WaveGrad2.git
+[submodule "03 Vocoder/diffwave"]
+	path = 03 Vocoder/diffwave
+	url = https://github.com/lmnt-com/diffwave.git
+[submodule "02 Acoustic Model/None-autoregressive/EATS"]
+	path = 02 Acoustic Model/None-autoregressive/EATS
+	url = https://github.com/yanggeng1995/EATS.git
+[submodule "02 Acoustic Model/None-autoregressive/GAN-TTS"]
+	path = 02 Acoustic Model/None-autoregressive/GAN-TTS
+	url = https://github.com/yanggeng1995/GAN-TTS.git
+[submodule "02 Acoustic Model/Autoregressive/DurIAN"]
+	path = 02 Acoustic Model/Autoregressive/DurIAN
+	url = https://github.com/ivanvovk/DurIAN.git
+[submodule "02 Acoustic Model/None-autoregressive/NATSpeech"]
+	path = 02 Acoustic Model/None-autoregressive/NATSpeech
+	url = https://github.com/NATSpeech/NATSpeech.git
+[submodule "02 Acoustic Model/None-autoregressive/BVAE-TTS"]
+	path = 02 Acoustic Model/None-autoregressive/BVAE-TTS
+	url = https://github.com/LEEYOONHYUNG/BVAE-TTS.git
+[submodule "04 Tools/mcd"]
+	path = 04 Tools/mcd
+	url = https://github.com/MattShannon/mcd.git
