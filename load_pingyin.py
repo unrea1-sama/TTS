@@ -5,12 +5,11 @@ import torch.utils.data
 
 import layers
 from utils import load_wav_to_torch, load_filepaths_and_text
-
-# from text import text_to_sequence
+from text import text_to_sequence
 import json
 
 
-def load_json(file=""):
+def load_json(file):
     with open(file) as f:
         return json.load(f)
 
@@ -23,8 +22,10 @@ class TextMelLoader(torch.utils.data.Dataset):
     """
 
     def __init__(self, audiopaths_and_text, hparams):
-        self.audiopaths_and_text = load_json(audiopaths_and_text)
-        self.text_cleaners = hparams.text_cleaners
+        # self.audiopaths_and_text = load_filepaths_and_text(audiopaths_and_text)
+        self.samples = load_json(hparams.training_files)
+        self.dict = load_json(hparams.dict)
+        # self.text_cleaners = hparams.text_cleaners
         self.max_wav_value = hparams.max_wav_value
         self.sampling_rate = hparams.sampling_rate
         self.load_mel_from_disk = hparams.load_mel_from_disk
@@ -37,13 +38,12 @@ class TextMelLoader(torch.utils.data.Dataset):
             hparams.mel_fmin,
             hparams.mel_fmax,
         )
-        self.dict = load_json(hparams.dict)
         random.seed(hparams.seed)
-        random.shuffle(self.audiopaths_and_text)
+        random.shuffle(self.samples)
 
     def get_mel_text_pair(self, audiopath_and_text):
         # separate filename and text
-        audiopath, text = audiopath_and_text[0], audiopath_and_text[2]
+        audiopath, text = audiopath_and_text[0], audiopath_and_text[1]
         text = self.get_text(text)
         mel = self.get_mel(audiopath)
         return (text, mel)
@@ -53,7 +53,7 @@ class TextMelLoader(torch.utils.data.Dataset):
             audio, sampling_rate = load_wav_to_torch(filename)
             if sampling_rate != self.stft.sampling_rate:
                 raise ValueError(
-                    "{} {} SR doesn't match target {} SR".format(
+                    "{} SR doesn't match target {} SR".format(
                         sampling_rate, self.stft.sampling_rate
                     )
                 )
@@ -75,13 +75,13 @@ class TextMelLoader(torch.utils.data.Dataset):
     def get_text(self, text):
         # text_norm = torch.IntTensor(text_to_sequence(text, self.text_cleaners))
         # return text_norm
-        return torch.IntTensor([self.dict[x] + 1 for x in text])
+        return torch.IntTensor([self.dict[x] for x in text])
 
     def __getitem__(self, index):
-        return self.get_mel_text_pair(self.audiopaths_and_text[index])
+        return self.get_mel_text_pair(self.samples[index])
 
     def __len__(self):
-        return len(self.audiopaths_and_text)
+        return len(self.samples)
 
 
 class TextMelCollate:
