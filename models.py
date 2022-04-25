@@ -275,10 +275,22 @@ class FlowGenerator(nn.Module):
       nn.init.uniform_(self.emb_g.weight, -0.1, 0.1)
 
   def forward(self, x, x_lengths, y=None, y_lengths=None, g=None, gen=False, noise_scale=1., length_scale=1.):
+    """
+    during training: 
+      compute mu and sigma of z from text
+      find the optimal alignment from mu and sigma of z
+      get the optimal mu and sigma of z from the optimal alignment
+      loss on predicted duration, maximum likelyhood loss
+    during inference:
+      compute mu and sigma of z from text
+      use duration predictor to expand mu and sigma
+      sample z from N(mu,sigma)
+      inverted flow to get mel spectrogram
+    """
     if g is not None:
       g = F.normalize(self.emb_g(g)).unsqueeze(-1) # [b, h]
     x_m, x_logs, logw, x_mask = self.encoder(x, x_lengths, g=g)
-
+    # mean, sigma, duation, mask
     if gen:
       w = torch.exp(logw) * x_mask * length_scale
       w_ceil = torch.ceil(w)
@@ -289,7 +301,12 @@ class FlowGenerator(nn.Module):
     y, y_lengths, y_max_length = self.preprocess(y, y_lengths, y_max_length)
     z_mask = torch.unsqueeze(commons.sequence_mask(y_lengths, y_max_length), 1).to(x_mask.dtype)
     attn_mask = torch.unsqueeze(x_mask, -1) * torch.unsqueeze(z_mask, 2)
-
+    # x_m,x_logs: b*c*t
+    # logw: b*1*t
+    # x_mask: b*1*t
+    # y: b*c*mel_t
+    # z_mask: b*1*mel_t
+    # attn_mask: b*1*t*mel_t
     if gen:
       attn = commons.generate_path(w_ceil.squeeze(1), attn_mask.squeeze(1)).unsqueeze(1)
       z_m = torch.matmul(attn.squeeze(1).transpose(1, 2), x_m.transpose(1, 2)).transpose(1, 2) # [b, t', t], [b, t, d] -> [b, d, t']
@@ -301,18 +318,23 @@ class FlowGenerator(nn.Module):
       return (y, z_m, z_logs, logdet, z_mask), (x_m, x_logs, x_mask), (attn, logw, logw_)
     else:
       z, logdet = self.decoder(y, z_mask, g=g, reverse=False)
+      # z: b*c*mel_t
       with torch.no_grad():
-        x_s_sq_r = torch.exp(-2 * x_logs)
-        logp1 = torch.sum(-0.5 * math.log(2 * math.pi) - x_logs, [1]).unsqueeze(-1) # [b, t, 1]
+        x_s_sq_r = torch.exp(-2 * x_logs) # 1/sigma^2
+        # x_s_sq_r: b*c*t
+        logp1 = torch.sum(-0.5 * math.log(2 * math.pi) - x_logs, [1]).unsqueeze(-1) # [b, t, 1] -0.5log(2pi)-log(sigma^2)
         logp2 = torch.matmul(x_s_sq_r.transpose(1,2), -0.5 * (z ** 2)) # [b, t, d] x [b, d, t'] = [b, t, t']
         logp3 = torch.matmul((x_m * x_s_sq_r).transpose(1,2), z) # [b, t, d] x [b, d, t'] = [b, t, t']
         logp4 = torch.sum(-0.5 * (x_m ** 2) * x_s_sq_r, [1]).unsqueeze(-1) # [b, t, 1]
         logp = logp1 + logp2 + logp3 + logp4 # [b, t, t']
 
         attn = monotonic_align.maximum_path(logp, attn_mask.squeeze(1)).unsqueeze(1).detach()
+        
+        
       z_m = torch.matmul(attn.squeeze(1).transpose(1, 2), x_m.transpose(1, 2)).transpose(1, 2) # [b, t', t], [b, t, d] -> [b, d, t']
       z_logs = torch.matmul(attn.squeeze(1).transpose(1, 2), x_logs.transpose(1, 2)).transpose(1, 2) # [b, t', t], [b, t, d] -> [b, d, t']
       logw_ = torch.log(1e-8 + torch.sum(attn, -1)) * x_mask
+      # log_w: b*1*t
       return (z, z_m, z_logs, logdet, z_mask), (x_m, x_logs, x_mask), (attn, logw, logw_)
 
   def preprocess(self, y, y_lengths, y_max_length):

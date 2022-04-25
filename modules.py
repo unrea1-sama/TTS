@@ -175,6 +175,7 @@ class ActNorm(nn.Module):
     self.initialized = not ddi
 
   def initialize(self, x, x_mask):
+    # calculate the mean and variance of the data
     with torch.no_grad():
       denom = torch.sum(x_mask, [0, 2])
       m = torch.sum(x * x_mask, [0, 2]) / denom

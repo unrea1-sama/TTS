@@ -13,8 +13,8 @@ hyperparameter. Some cleaners are English-specific. You'll typically want to use
 '''
 
 import re
-from unidecode import unidecode
-from .numbers import normalize_numbers
+#from unidecode import unidecode
+#from .numbers import normalize_numbers
 
 
 # Regular expression matching whitespace:
@@ -50,7 +50,7 @@ def expand_abbreviations(text):
 
 
 def expand_numbers(text):
-  return normalize_numbers(text)
+  return text
 
 
 def lowercase(text):
@@ -62,7 +62,7 @@ def collapse_whitespace(text):
 
 
 def convert_to_ascii(text):
-  return unidecode(text)
+  return text
 
 
 def basic_cleaners(text):
