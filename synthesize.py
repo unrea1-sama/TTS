@@ -6,8 +6,8 @@ import torch
 import yaml
 import numpy as np
 from torch.utils.data import DataLoader
-from g2p_en import G2p
-from pypinyin import pinyin, Style
+#from g2p_en import G2p
+#from pypinyin import pinyin, Style
 
 from utils.model import get_model, get_vocoder
 from utils.tools import to_device, synth_samples
@@ -30,6 +30,7 @@ def read_lexicon(lex_path):
 
 
 def preprocess_english(text, preprocess_config):
+    return
     text = text.rstrip(punctuation)
     lexicon = read_lexicon(preprocess_config["path"]["lexicon_path"])
 
@@ -57,6 +58,7 @@ def preprocess_english(text, preprocess_config):
 
 
 def preprocess_mandarin(text, preprocess_config):
+    return 
     lexicon = read_lexicon(preprocess_config["path"]["lexicon_path"])
 
     phones = []
@@ -92,12 +94,31 @@ def synthesize(model, step, configs, vocoder, batchs, control_values):
         batch = to_device(batch, device)
         with torch.no_grad():
             # Forward
+            (
+                ids,
+                phone_full_labels,
+                speakers,
+                phones,
+                pingyin_states,
+                prosodic_structures,
+                src_lens,
+                max_src_len,
+            ) = batch
             output = model(
-                *(batch[2:]),
+                speakers,
+                phones,
+                pingyin_states,
+                prosodic_structures,
+                src_lens,
+                max_src_len,
                 p_control=pitch_control,
                 e_control=energy_control,
                 d_control=duration_control
             )
+            #print(phones)
+            #print(pingyin_states)
+            #print(prosodic_structures)
+
             synth_samples(
                 batch,
                 output,

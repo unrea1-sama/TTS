@@ -1,0 +1,31 @@
+dataset: "self"
+
+path:
+  corpus_path: '/workspace/cpfs-data/biaobei/wav_mono_24k_16b_norm-6db'
+  align_path: '/workspace/cpfs-data/biaobei/biaobei_aligned'
+  preprocessed_path: "/workspace/cpfs-data/biaobei/biaobei_processed"
+  dict: "/workspace/cpfs-data/biaobei/biaobei_pingyin_glow-dict.json"
+
+preprocessing:
+  val_size: 512
+  text:
+    text_cleaners: []
+    language: "zh"
+  audio:
+    sampling_rate: 24000
+    max_wav_value: 32768.0
+  stft:
+    filter_length: 1024
+    hop_length: 256
+    win_length: 1024
+
+  mel:
+    n_mel_channels: 80
+    mel_fmin: 0
+    mel_fmax: 8000
+  pitch:
+    feature: "phoneme_level"
+    normalization: True
+  energy:
+    feature: "phoneme_level"
+    normalization: True

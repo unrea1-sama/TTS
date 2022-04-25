@@ -11,7 +11,7 @@ from utils.tools import get_mask_from_lengths
 
 
 class FastSpeech2(nn.Module):
-    """ FastSpeech2 """
+    """FastSpeech2"""
 
     def __init__(self, preprocess_config, model_config):
         super(FastSpeech2, self).__init__()
@@ -43,7 +43,9 @@ class FastSpeech2(nn.Module):
     def forward(
         self,
         speakers,
-        texts,
+        phones,
+        pingyin_states,
+        prosodic_structures,
         src_lens,
         max_src_len,
         mels=None,
@@ -63,7 +65,7 @@ class FastSpeech2(nn.Module):
             else None
         )
 
-        output = self.encoder(texts, src_masks)
+        output = self.encoder(phones, pingyin_states, prosodic_structures, src_masks)
 
         if self.speaker_emb is not None:
             output = output + self.speaker_emb(speakers).unsqueeze(1).expand(

@@ -5,8 +5,10 @@ import os
 import numpy as np
 from torch.utils.data import Dataset
 
-from text import text_to_sequence
+# from text import text_to_sequence
 from utils.tools import pad_1D, pad_2D
+
+import json
 
 
 class Dataset(Dataset):
@@ -18,23 +20,57 @@ class Dataset(Dataset):
         self.cleaners = preprocess_config["preprocessing"]["text"]["text_cleaners"]
         self.batch_size = train_config["optimizer"]["batch_size"]
 
-        self.basename, self.speaker, self.text, self.raw_text = self.process_meta(
-            filename
-        )
-        with open(os.path.join(self.preprocessed_path, "speakers.json")) as f:
-            self.speaker_map = json.load(f)
+        (
+            self.basename,
+            self.speaker,
+            self.phone,
+            self.phone_full_label,
+        ) = self.process_meta(filename)
+        # with open(os.path.join(self.preprocessed_path, "speakers.json")) as f:
+        #    self.speaker_map = json.load(f)
         self.sort = sort
         self.drop_last = drop_last
 
+        with open(preprocess_config["path"]["dict"]) as f:
+            self.phone_dict = json.load(f)
+
     def __len__(self):
-        return len(self.text)
+        return len(self.phone)
+
+    def text_to_sequence(self, text):
+        phone_seq = []
+        pingyin_state_seq = []
+        prosodic_structure_seq = []
+        for token in text.strip("{").strip("}").split(" "):
+            if token == "-":
+                pingyin_state_seq[-1] = 1
+            elif token == "|":
+                pingyin_state_seq[-1] = 2
+            elif token == "^":
+                prosodic_structure_seq[-1] = 2
+            elif token == "*":
+                prosodic_structure_seq[-1] = 3
+            elif token == "&":
+                prosodic_structure_seq[-1] = 4
+            elif token == "$":
+                prosodic_structure_seq[-1] = 5
+            else:
+                phone_seq.append(self.phone_dict[token] + 1)
+                pingyin_state_seq.append(1)
+                prosodic_structure_seq.append(1)
+        return (
+            np.array(phone_seq),
+            np.array(pingyin_state_seq),
+            np.array(prosodic_structure_seq),
+        )
 
     def __getitem__(self, idx):
         basename = self.basename[idx]
         speaker = self.speaker[idx]
-        speaker_id = self.speaker_map[speaker]
-        raw_text = self.raw_text[idx]
-        phone = np.array(text_to_sequence(self.text[idx], self.cleaners))
+        phone_full_label = self.phone_full_label[idx]
+        phone, pingyin_state, prosodic_structure = self.text_to_sequence(
+            phone_full_label
+        )
         mel_path = os.path.join(
             self.preprocessed_path,
             "mel",
@@ -62,9 +98,11 @@ class Dataset(Dataset):
 
         sample = {
             "id": basename,
-            "speaker": speaker_id,
-            "text": phone,
-            "raw_text": raw_text,
+            "speaker": speaker,
+            "phone_full_label": phone_full_label,
+            "phone": phone,
+            "pingyin_state": pingyin_state,
+            "prosodic_structure": prosodic_structure,
             "mel": mel,
             "pitch": pitch,
             "energy": energy,
@@ -79,41 +117,50 @@ class Dataset(Dataset):
         ) as f:
             name = []
             speaker = []
-            text = []
-            raw_text = []
+            phone = []
+            phone_full_label = []
             for line in f.readlines():
-                n, s, t, r = line.strip("\n").split("|")
+                n, s, p, r = line.strip("\n").split("|", 3)
                 name.append(n)
                 speaker.append(s)
-                text.append(t)
-                raw_text.append(r)
-            return name, speaker, text, raw_text
+                phone.append(p)
+                phone_full_label.append(r)
+            return name, speaker, phone, phone_full_label
 
     def reprocess(self, data, idxs):
         ids = [data[idx]["id"] for idx in idxs]
         speakers = [data[idx]["speaker"] for idx in idxs]
-        texts = [data[idx]["text"] for idx in idxs]
-        raw_texts = [data[idx]["raw_text"] for idx in idxs]
+        phones = [data[idx]["phone"] for idx in idxs]
+        phone_full_label = [data[idx]["phone_full_label"] for idx in idxs]
+        pingyin_states = [data[idx]["pingyin_state"] for idx in idxs]
+        prosodic_structures = [data[idx]["prosodic_structure"] for idx in idxs]
+        # raw_texts = [data[idx]["raw_text"] for idx in idxs]
         mels = [data[idx]["mel"] for idx in idxs]
         pitches = [data[idx]["pitch"] for idx in idxs]
         energies = [data[idx]["energy"] for idx in idxs]
         durations = [data[idx]["duration"] for idx in idxs]
 
-        text_lens = np.array([text.shape[0] for text in texts])
+        text_lens = np.array([phone.shape[0] for phone in phones])
         mel_lens = np.array([mel.shape[0] for mel in mels])
 
         speakers = np.array(speakers)
-        texts = pad_1D(texts)
+        phones = pad_1D(phones)
+        pingyin_states = pad_1D(pingyin_states)
+        prosodic_structures = pad_1D(prosodic_structures)
         mels = pad_2D(mels)
         pitches = pad_1D(pitches)
         energies = pad_1D(energies)
         durations = pad_1D(durations)
 
+        pitches = np.nan_to_num(pitches)
+        energies = np.nan_to_num(energies)
         return (
             ids,
-            raw_texts,
+            phone_full_label,
             speakers,
-            texts,
+            phones,
+            pingyin_states,
+            prosodic_structures,
             text_lens,
             max(text_lens),
             mels,
@@ -128,7 +175,7 @@ class Dataset(Dataset):
         data_size = len(data)
 
         if self.sort:
-            len_arr = np.array([d["text"].shape[0] for d in data])
+            len_arr = np.array([d["phone"].shape[0] for d in data])
             idx_arr = np.argsort(-len_arr)
         else:
             idx_arr = np.arange(data_size)
@@ -148,54 +195,109 @@ class Dataset(Dataset):
 
 class TextDataset(Dataset):
     def __init__(self, filepath, preprocess_config):
-        self.cleaners = preprocess_config["preprocessing"]["text"]["text_cleaners"]
+        # self.cleaners = preprocess_config["preprocessing"]["text"]["text_cleaners"]
 
-        self.basename, self.speaker, self.text, self.raw_text = self.process_meta(
-            filepath
-        )
-        with open(
-            os.path.join(
-                preprocess_config["path"]["preprocessed_path"], "speakers.json"
-            )
-        ) as f:
-            self.speaker_map = json.load(f)
+        (
+            self.basename,
+            self.speaker,
+            self.phone,
+            self.phone_full_label,
+        ) = self.process_meta(filepath)
+        # with open(
+        #    os.path.join(
+        #        preprocess_config["path"]["preprocessed_path"], "speakers.json"
+        #    )
+        # ) as f:
+        #    self.speaker_map = json.load(f)
+        with open(preprocess_config["path"]["dict"]) as f:
+            self.phone_dict = json.load(f)
 
     def __len__(self):
-        return len(self.text)
+        return len(self.phone)
+
+    def text_to_sequence(self, text):
+        phone_seq = []
+        pingyin_state_seq = []
+        prosodic_structure_seq = []
+        for token in text.strip("{").strip("}").split(" "):
+            if token == "-":
+                pingyin_state_seq[-1] = 1
+            elif token == "|":
+                pingyin_state_seq[-1] = 2
+            elif token == "^":
+                prosodic_structure_seq[-1] = 2
+            elif token == "*":
+                prosodic_structure_seq[-1] = 3
+            elif token == "&":
+                prosodic_structure_seq[-1] = 4
+            elif token == "$":
+                prosodic_structure_seq[-1] = 5
+            else:
+                phone_seq.append(self.phone_dict[token] + 1)
+                pingyin_state_seq.append(1)
+                prosodic_structure_seq.append(1)
+        return (
+            np.array(phone_seq),
+            np.array(pingyin_state_seq),
+            np.array(prosodic_structure_seq),
+        )
 
     def __getitem__(self, idx):
         basename = self.basename[idx]
         speaker = self.speaker[idx]
-        speaker_id = self.speaker_map[speaker]
-        raw_text = self.raw_text[idx]
-        phone = np.array(text_to_sequence(self.text[idx], self.cleaners))
+        # speaker_id = self.speaker_map[speaker]
+        phone_full_label = self.phone_full_label[idx]
+        phone, pingyin_state, prosodic_structure = self.text_to_sequence(
+            phone_full_label
+        )
+        # phone = np.array(text_to_sequence(self.text[idx], self.cleaners))
 
-        return (basename, speaker_id, phone, raw_text)
+        return (
+            basename,
+            speaker,
+            phone_full_label,
+            phone,
+            pingyin_state,
+            prosodic_structure,
+        )
 
     def process_meta(self, filename):
         with open(filename, "r", encoding="utf-8") as f:
             name = []
             speaker = []
-            text = []
-            raw_text = []
+            phone = []
+            phone_full_label = []
             for line in f.readlines():
-                n, s, t, r = line.strip("\n").split("|")
+                n, s, p, r = line.strip("\n").split("|", 3)
                 name.append(n)
                 speaker.append(s)
-                text.append(t)
-                raw_text.append(r)
-            return name, speaker, text, raw_text
+                phone.append(p)
+                phone_full_label.append(r)
+            return name, speaker, phone, phone_full_label
 
     def collate_fn(self, data):
         ids = [d[0] for d in data]
         speakers = np.array([d[1] for d in data])
-        texts = [d[2] for d in data]
-        raw_texts = [d[3] for d in data]
-        text_lens = np.array([text.shape[0] for text in texts])
+        phone_full_labels = [d[2] for d in data]
+        phone = [d[3] for d in data]
+        pingyin_state = [d[4] for d in data]
+        prosodic_structure = [d[5] for d in data]
+        text_lens = np.array([p.shape[0] for p in phone])
 
-        texts = pad_1D(texts)
+        phone = pad_1D(phone)
+        pingyin_state = pad_1D(pingyin_state)
+        prosodic_structure = pad_1D(prosodic_structure)
 
-        return ids, raw_texts, speakers, texts, text_lens, max(text_lens)
+        return (
+            ids,
+            phone_full_labels,
+            speakers,
+            phone,
+            pingyin_state,
+            prosodic_structure,
+            text_lens,
+            max(text_lens),
+        )
 
 
 if __name__ == "__main__":

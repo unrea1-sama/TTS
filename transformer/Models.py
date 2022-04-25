@@ -8,7 +8,7 @@ from text.symbols import symbols
 
 
 def get_sinusoid_encoding_table(n_position, d_hid, padding_idx=None):
-    """ Sinusoid position encoding table """
+    """Sinusoid position encoding table"""
 
     def cal_angle(position, hid_idx):
         return position / np.power(10000, 2 * (hid_idx // 2) / d_hid)
@@ -31,13 +31,13 @@ def get_sinusoid_encoding_table(n_position, d_hid, padding_idx=None):
 
 
 class Encoder(nn.Module):
-    """ Encoder """
+    """Encoder"""
 
     def __init__(self, config):
         super(Encoder, self).__init__()
 
         n_position = config["max_seq_len"] + 1
-        n_src_vocab = len(symbols) + 1
+        n_src_vocab = config["src_vocab"]
         d_word_vec = config["transformer"]["encoder_hidden"]
         n_layers = config["transformer"]["encoder_layer"]
         n_head = config["transformer"]["encoder_head"]
@@ -52,7 +52,10 @@ class Encoder(nn.Module):
 
         self.max_seq_len = config["max_seq_len"]
         self.d_model = d_model
-
+        self.src_pingyin_emb = nn.Embedding(3, 128, padding_idx=0)  # - | pad
+        self.src_prosodic_structure_emb = nn.Embedding(
+            6, 128, padding_idx=0
+        )  # #0,#1,#2,#3,#4,pad
         self.src_word_emb = nn.Embedding(
             n_src_vocab, d_word_vec, padding_idx=Constants.PAD
         )
@@ -69,8 +72,11 @@ class Encoder(nn.Module):
                 for _ in range(n_layers)
             ]
         )
+        self.linear = nn.Linear(d_word_vec + 128 * 2, d_word_vec)
 
-    def forward(self, src_seq, mask, return_attns=False):
+    def forward(
+        self, src_seq, pingyin_states, prosodic_structures, mask, return_attns=False
+    ):
 
         enc_slf_attn_list = []
         batch_size, max_len = src_seq.shape[0], src_seq.shape[1]
@@ -80,15 +86,20 @@ class Encoder(nn.Module):
 
         # -- Forward
         if not self.training and src_seq.shape[1] > self.max_seq_len:
-            enc_output = self.src_word_emb(src_seq) + get_sinusoid_encoding_table(
+            word_emb = self.src_word_emb(src_seq) + get_sinusoid_encoding_table(
                 src_seq.shape[1], self.d_model
             )[: src_seq.shape[1], :].unsqueeze(0).expand(batch_size, -1, -1).to(
                 src_seq.device
             )
         else:
-            enc_output = self.src_word_emb(src_seq) + self.position_enc[
+            word_emb = self.src_word_emb(src_seq) + self.position_enc[
                 :, :max_len, :
             ].expand(batch_size, -1, -1)
+        pingyin_states_emb = self.src_pingyin_emb(pingyin_states)
+        prosodic_structures_emb = self.src_prosodic_structure_emb(prosodic_structures)
+        enc_output = self.linear(
+            torch.cat([word_emb, pingyin_states_emb, prosodic_structures_emb], dim=-1)
+        )
 
         for enc_layer in self.layer_stack:
             enc_output, enc_slf_attn = enc_layer(
@@ -101,7 +112,7 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    """ Decoder """
+    """Decoder"""
 
     def __init__(self, config):
         super(Decoder, self).__init__()

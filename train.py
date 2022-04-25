@@ -77,10 +77,10 @@ def main(args, configs):
         for batchs in loader:
             for batch in batchs:
                 batch = to_device(batch, device)
-
+                #print(batch)
                 # Forward
                 output = model(*(batch[2:]))
-
+                #print(output)
                 # Cal Loss
                 losses = Loss(batch, output)
                 total_loss = losses[0]
@@ -164,7 +164,6 @@ def main(args, configs):
                     quit()
                 step += 1
                 outer_bar.update(1)
-
             inner_bar.update(1)
         epoch += 1
 

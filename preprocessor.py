@@ -16,8 +16,9 @@ import audio as Audio
 class Preprocessor:
     def __init__(self, config):
         self.config = config
-        self.in_dir = config["path"]["raw_path"]
+        self.wav_dir = config["path"]["corpus_path"]
         self.out_dir = config["path"]["preprocessed_path"]
+        self.align_dir = config["path"]["align_path"]
         self.val_size = config["preprocessing"]["val_size"]
         self.sampling_rate = config["preprocessing"]["audio"]["sampling_rate"]
         self.hop_length = config["preprocessing"]["stft"]["hop_length"]
@@ -63,31 +64,32 @@ class Preprocessor:
         energy_scaler = StandardScaler()
 
         # Compute pitch, energy, duration, and mel-spectrogram
-        speakers = {}
-        for i, speaker in enumerate(tqdm(os.listdir(self.in_dir))):
-            speakers[speaker] = i
-            for wav_name in os.listdir(os.path.join(self.in_dir, speaker)):
-                if ".wav" not in wav_name:
-                    continue
-
-                basename = wav_name.split(".")[0]
-                tg_path = os.path.join(
-                    self.out_dir, "TextGrid", speaker, "{}.TextGrid".format(basename)
-                )
-                if os.path.exists(tg_path):
-                    ret = self.process_utterance(speaker, basename)
-                    if ret is None:
-                        continue
-                    else:
-                        info, pitch, energy, n = ret
-                    out.append(info)
-
-                if len(pitch) > 0:
-                    pitch_scaler.partial_fit(pitch.reshape((-1, 1)))
-                if len(energy) > 0:
-                    energy_scaler.partial_fit(energy.reshape((-1, 1)))
-
-                n_frames += n
+        # speakers = {}
+        for root, dirs, files in os.walk(self.wav_dir):
+            for file in sorted(files):
+                if file.endswith(".wav"):
+                    # file = "huya_bznsyp_000057.wav"
+                    wav_path = os.path.abspath(os.path.join(root, file))
+                    # print("Processing {}".format(wav_path))
+                    wav_name, _ = file.split(".")
+                    tg_path = os.path.join(
+                        self.align_dir, "{}.TextGrid".format(wav_name)
+                    )
+                    pingyin_full_path = os.path.join(root, "{}-fl.txt".format(wav_name))
+                    if os.path.exists(tg_path):
+                        ret = self.process_utterance(
+                            wav_path, tg_path, pingyin_full_path, wav_name
+                        )
+                        if ret:
+                            info, pitch, energy, n = ret
+                            if len(pitch) and len(energy):
+                                pitch_scaler.partial_fit(pitch.reshape((-1, 1)))
+                                energy_scaler.partial_fit(energy.reshape((-1, 1)))
+                                out.append(info)
+                                n_frames += n
+                                print("Processed {}".format(wav_path))
+                                continue
+                    print("Wrong file: {}".format(wav_path))
 
         print("Computing statistic quantities ...")
         # Perform normalization if necessary
@@ -113,8 +115,8 @@ class Preprocessor:
         )
 
         # Save files
-        with open(os.path.join(self.out_dir, "speakers.json"), "w") as f:
-            f.write(json.dumps(speakers))
+        # with open(os.path.join(self.out_dir, "speakers.json"), "w") as f:
+        #    f.write(json.dumps(speakers))
 
         with open(os.path.join(self.out_dir, "stats.json"), "w") as f:
             stats = {
@@ -152,19 +154,21 @@ class Preprocessor:
 
         return out
 
-    def process_utterance(self, speaker, basename):
-        wav_path = os.path.join(self.in_dir, speaker, "{}.wav".format(basename))
-        text_path = os.path.join(self.in_dir, speaker, "{}.lab".format(basename))
-        tg_path = os.path.join(
-            self.out_dir, "TextGrid", speaker, "{}.TextGrid".format(basename)
-        )
-
+    def process_utterance(self, wav_path, tg_path, pingyin_full_path, basename):
+        # wav_path = os.path.join(self.in_dir, speaker, "{}.wav".format(basename))
+        # text_path = os.path.join(self.in_dir, speaker, "{}.lab".format(basename))
+        # tg_path = os.path.join(
+        #    self.out_dir, "TextGrid", speaker, "{}.TextGrid".format(basename)
+        # )
+        speaker = "1"
         # Get alignments
         textgrid = tgt.io.read_textgrid(tg_path)
         phone, duration, start, end = self.get_alignment(
             textgrid.get_tier_by_name("phones")
         )
         text = "{" + " ".join(phone) + "}"
+        with open(pingyin_full_path) as f:
+            raw_text = "{" + f.readline().strip() + "}"
         if start >= end:
             return None
 
@@ -175,8 +179,8 @@ class Preprocessor:
         ].astype(np.float32)
 
         # Read raw text
-        with open(text_path, "r") as f:
-            raw_text = f.readline().strip("\n")
+        # with open(text_path, "r") as f:
+        #    raw_text = f.readline().strip("\n")
 
         # Compute fundamental frequency
         pitch, t = pw.dio(
@@ -251,7 +255,7 @@ class Preprocessor:
         )
 
     def get_alignment(self, tier):
-        sil_phones = ["sil", "sp", "spn",""]
+        sil_phones = ["sil", "sp", "spn", ""]
 
         phones = []
         durations = []
@@ -312,3 +316,25 @@ class Preprocessor:
             min_value = min(min_value, min(values))
 
         return min_value, max_value
+
+
+import argparse
+
+import yaml
+
+# from preprocessor.preprocessor import Preprocessor
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--config",
+        type=str,
+        help="path to preprocess.yaml",
+        default="config/myself/preprocess.yaml",
+    )
+    args = parser.parse_args()
+
+    config = yaml.load(open(args.config, "r"), Loader=yaml.FullLoader)
+    preprocessor = Preprocessor(config)
+    preprocessor.build_from_path()

@@ -24,7 +24,7 @@ class FastSpeech2Loss(nn.Module):
             pitch_targets,
             energy_targets,
             duration_targets,
-        ) = inputs[6:]
+        ) = inputs[8:]
         (
             mel_predictions,
             postnet_mel_predictions,
@@ -37,6 +37,18 @@ class FastSpeech2Loss(nn.Module):
             _,
             _,
         ) = predictions
+        #print(mel_targets,mel_targets.shape)
+        #print(pitch_targets,pitch_targets.shape)
+        #print(energy_targets,energy_targets.shape)
+        #print(duration_targets,duration_targets.shape)
+        #print("-----------")
+        #print(mel_predictions)
+        #print(postnet_mel_predictions)
+        #print(pitch_predictions)
+        #print(energy_predictions)
+        #print(log_duration_predictions)
+        #print(src_masks)
+        #print(mel_masks)
         src_masks = ~src_masks
         mel_masks = ~mel_masks
         log_duration_targets = torch.log(duration_targets.float() + 1)
