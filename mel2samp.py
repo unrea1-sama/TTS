@@ -34,8 +34,7 @@ import sys
 from scipy.io.wavfile import read
 
 # We're using the audio processing from TacoTron2 to make sure it matches
-sys.path.insert(0, 'tacotron2')
-from tacotron2.layers import TacotronSTFT
+from layers import TacotronSTFT
 
 MAX_WAV_VALUE = 32768.0
 
@@ -44,10 +43,7 @@ def files_to_list(filename):
     Takes a text file of filenames and makes a list of filenames
     """
     with open(filename, encoding='utf-8') as f:
-        files = f.readlines()
-
-    files = [f.rstrip() for f in files]
-    return files
+        return json.load(f)
 
 def load_wav_to_torch(full_path):
     """
@@ -85,7 +81,7 @@ class Mel2Samp(torch.utils.data.Dataset):
 
     def __getitem__(self, index):
         # Read audio
-        filename = self.audio_files[index]
+        filename = self.audio_files[index][0]
         audio, sampling_rate = load_wav_to_torch(filename)
         if sampling_rate != self.sampling_rate:
             raise ValueError("{} SR doesn't match target {} SR".format(

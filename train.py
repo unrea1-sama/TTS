@@ -28,6 +28,7 @@ import argparse
 import json
 import os
 import torch
+from torch.utils.tensorboard import SummaryWriter
 
 #=====START: ADDED FOR DISTRIBUTED======
 from distributed import init_distributed, apply_gradient_allreduce, reduce_tensor
@@ -108,7 +109,7 @@ def train(num_gpus, rank, group_name, output_directory, epochs, learning_rate,
         print("output directory", output_directory)
 
     if with_tensorboard and rank == 0:
-        from tensorboardX import SummaryWriter
+        #from tensorboardX import SummaryWriter
         logger = SummaryWriter(os.path.join(output_directory, 'logs'))
 
     model.train()
