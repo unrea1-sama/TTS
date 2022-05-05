@@ -31,7 +31,7 @@ from losses import (
   kl_loss
 )
 from mel_processing import mel_spectrogram_torch, spec_to_mel_torch
-from text.symbols import symbols
+#from text.symbols import symbols
 
 
 torch.backends.cudnn.benchmark = True
@@ -72,16 +72,16 @@ def run(rank, n_gpus, hps):
       rank=rank,
       shuffle=True)
   collate_fn = TextAudioCollate()
-  train_loader = DataLoader(train_dataset, num_workers=8, shuffle=False, pin_memory=True,
+  train_loader = DataLoader(train_dataset, num_workers=1, shuffle=False, pin_memory=True,
       collate_fn=collate_fn, batch_sampler=train_sampler)
   if rank == 0:
     eval_dataset = TextAudioLoader(hps.data.validation_files, hps.data)
-    eval_loader = DataLoader(eval_dataset, num_workers=8, shuffle=False,
+    eval_loader = DataLoader(eval_dataset, num_workers=1, shuffle=False,
         batch_size=hps.train.batch_size, pin_memory=True,
         drop_last=False, collate_fn=collate_fn)
 
   net_g = SynthesizerTrn(
-      len(symbols),
+      hps.data.symbols,
       hps.data.filter_length // 2 + 1,
       hps.train.segment_size // hps.data.hop_length,
       **hps.model).cuda(rank)
@@ -142,6 +142,22 @@ def train_and_evaluate(rank, epoch, hps, nets, optims, schedulers, scaler, loade
     with autocast(enabled=hps.train.fp16_run):
       y_hat, l_length, attn, ids_slice, x_mask, z_mask,\
       (z, z_p, m_p, logs_p, m_q, logs_q) = net_g(x, x_lengths, spec, spec_lengths)
+
+      # training
+      # TextEncoder: x-> m_p, logs_p
+      # PosteriorEncoder: y-> m_q, logs_q, z
+      # Flow: z -> z_p
+      # SDP: x,w -> l_length
+      # loss KL: z_p, logs_q, m_p, logs_p 
+
+      # inference:
+      # TextEncoder: x-> x, m_p, logs_p
+      # duration: x-> logw -> w
+      # w -> attn
+      # expand m_p, logs_p according to attn
+      # m_p, logs_p, random_number -> z_p
+      # flow(z_p) -> z
+      # decoder(z) -> o
 
       mel = spec_to_mel_torch(
           spec, 

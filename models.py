@@ -469,6 +469,7 @@ class SynthesizerTrn(nn.Module):
 
     with torch.no_grad():
       # negative cross-entropy
+      # find the best path to produce z_p
       s_p_sq_r = torch.exp(-2 * logs_p) # [b, d, t]
       neg_cent1 = torch.sum(-0.5 * math.log(2 * math.pi) - logs_p, [1], keepdim=True) # [b, 1, t_s]
       neg_cent2 = torch.matmul(-0.5 * (z_p ** 2).transpose(1, 2), s_p_sq_r) # [b, t_t, d] x [b, d, t_s] = [b, t_t, t_s]
