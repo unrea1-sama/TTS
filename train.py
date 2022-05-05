@@ -47,7 +47,8 @@ from nnmnkwii.datasets import FileSourceDataset, FileDataSource
 
 import librosa.display
 
-from tensorboardX import SummaryWriter
+#from tensorboardX import SummaryWriter
+from torch.utils.tensorboard import SummaryWriter
 from matplotlib import cm
 from warnings import warn
 

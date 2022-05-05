@@ -5,7 +5,7 @@ VOC_DIR=$script_dir/../../
 
 # Directory that contains all wav files
 # **CHANGE** this to your database path
-db_root=~/data/LJSpeech-1.1/wavs/
+db_root=/workspace/cpfs-data/biaobei/wav_mono_24k_16b_norm-6db
 
 spk="lj"
 dumpdir=dump
@@ -25,7 +25,7 @@ stop_stage=0
 
 # Hyper parameters (.json)
 # **CHANGE** here to your own hparams
-hparams=conf/mol_wavenet_demo.json
+hparams=conf/myself.json
 
 # Batch size at inference time.
 inference_batch_size=32
@@ -72,7 +72,7 @@ if [ ${stage} -le 0 ] && [ ${stop_stage} -ge 0 ]; then
       echo "  Use option --db-root \${path_contains_wav_files}"
       exit 1
     fi
-    python $VOC_DIR/mksubset.py $db_root $data_root \
+    python3 $VOC_DIR/mksubset.py $db_root $data_root \
       --train-dev-test-split --dev-size $dev_size --test-size $eval_size \
       --limit=$limit
 fi
@@ -81,19 +81,19 @@ if [ ${stage} -le 1 ] && [ ${stop_stage} -ge 1 ]; then
     echo "stage 1: Feature Generation"
     for s in ${datasets[@]};
     do
-      python $VOC_DIR/preprocess.py wavallin $data_root/$s ${dump_org_dir}/$s \
+      python3 $VOC_DIR/preprocess.py wavallin $data_root/$s ${dump_org_dir}/$s \
         --hparams="global_gain_scale=${global_gain_scale}" --preset=$hparams
     done
 
     # Compute mean-var normalization stats
     find $dump_org_dir/$train_set -type f -name "*feats.npy" > train_list.txt
-    python $VOC_DIR/compute-meanvar-stats.py train_list.txt $dump_org_dir/meanvar.joblib
+    python3 $VOC_DIR/compute-meanvar-stats.py train_list.txt $dump_org_dir/meanvar.joblib
     rm -f train_list.txt
 
     # Apply normalization
     for s in ${datasets[@]};
     do
-      python $VOC_DIR/preprocess_normalize.py ${dump_org_dir}/$s $dump_norm_dir/$s \
+      python3 $VOC_DIR/preprocess_normalize.py ${dump_org_dir}/$s $dump_norm_dir/$s \
         $dump_org_dir/meanvar.joblib
     done
     cp -f $dump_org_dir/meanvar.joblib ${dump_norm_dir}/meanvar.joblib
@@ -101,7 +101,7 @@ fi
 
 if [ ${stage} -le 2 ] && [ ${stop_stage} -ge 2 ]; then
     echo "stage 2: WaveNet training"
-    python $VOC_DIR/train.py --dump-root $dump_norm_dir --preset $hparams \
+    python3 $VOC_DIR/train.py --dump-root $dump_norm_dir --preset $hparams \
       --checkpoint-dir=$expdir \
       --log-event-path=tensorboard/${expname}
 fi
@@ -116,7 +116,7 @@ if [ ${stage} -le 3 ] && [ ${stop_stage} -ge 3 ]; then
     for s in $dev_set $eval_set;
     do
       dst_dir=$expdir/generated/$name/$s
-      python $VOC_DIR/evaluate.py $dump_norm_dir/$s $eval_checkpoint $dst_dir \
+      python3 $VOC_DIR/evaluate.py $dump_norm_dir/$s $eval_checkpoint $dst_dir \
         --preset $hparams --hparams="batch_size=$inference_batch_size" \
         --num-utterances=$eval_max_num_utt
     done
