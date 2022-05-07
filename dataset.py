@@ -9,6 +9,13 @@ from torch.utils.data import Dataset
 from utils.tools import pad_1D, pad_2D
 
 import json
+import re
+
+
+def text_to_sequence(text, symbols_dict):
+    return np.array(
+        [symbols_dict[token] + 1 for token in text.split(" ")]
+    )
 
 
 class Dataset(Dataset):
@@ -37,6 +44,7 @@ class Dataset(Dataset):
     def __len__(self):
         return len(self.phone)
 
+    """
     def text_to_sequence(self, text):
         phone_seq = []
         pingyin_state_seq = []
@@ -63,14 +71,22 @@ class Dataset(Dataset):
             np.array(pingyin_state_seq),
             np.array(prosodic_structure_seq),
         )
+    """
+
+    #def text_to_sequence(self, text):
+    #    return np.array(
+    #        [
+    #            self.phone_dict[token] + 1
+    #            for token in text.strip("{").strip("}").split(" ")
+    #        ]
+    #    )
 
     def __getitem__(self, idx):
         basename = self.basename[idx]
         speaker = self.speaker[idx]
         phone_full_label = self.phone_full_label[idx]
-        phone, pingyin_state, prosodic_structure = self.text_to_sequence(
-            phone_full_label
-        )
+        #phone = text_to_sequence(phone_full_label,self.phone_dict)
+        phone = np.array([self.phone_dict[token] + 1 for token in phone_full_label])
         mel_path = os.path.join(
             self.preprocessed_path,
             "mel",
@@ -101,8 +117,6 @@ class Dataset(Dataset):
             "speaker": speaker,
             "phone_full_label": phone_full_label,
             "phone": phone,
-            "pingyin_state": pingyin_state,
-            "prosodic_structure": prosodic_structure,
             "mel": mel,
             "pitch": pitch,
             "energy": energy,
@@ -115,25 +129,25 @@ class Dataset(Dataset):
         with open(
             os.path.join(self.preprocessed_path, filename), "r", encoding="utf-8"
         ) as f:
-            name = []
-            speaker = []
-            phone = []
-            phone_full_label = []
-            for line in f.readlines():
-                n, s, p, r = line.strip("\n").split("|", 3)
-                name.append(n)
-                speaker.append(s)
-                phone.append(p)
-                phone_full_label.append(r)
-            return name, speaker, phone, phone_full_label
+            meta_json = json.load(f)
+        name = []
+        speaker = []
+        phone = []
+        phone_full_label = []
+        for n,s,t,_ in meta_json:
+            name.append(n)
+            speaker.append(s)
+            phone.append(t)
+            phone_full_label.append(t)
+        return name, speaker, phone, phone_full_label
 
     def reprocess(self, data, idxs):
         ids = [data[idx]["id"] for idx in idxs]
         speakers = [data[idx]["speaker"] for idx in idxs]
         phones = [data[idx]["phone"] for idx in idxs]
         phone_full_label = [data[idx]["phone_full_label"] for idx in idxs]
-        pingyin_states = [data[idx]["pingyin_state"] for idx in idxs]
-        prosodic_structures = [data[idx]["prosodic_structure"] for idx in idxs]
+        # pingyin_states = [data[idx]["pingyin_state"] for idx in idxs]
+        # prosodic_structures = [data[idx]["prosodic_structure"] for idx in idxs]
         # raw_texts = [data[idx]["raw_text"] for idx in idxs]
         mels = [data[idx]["mel"] for idx in idxs]
         pitches = [data[idx]["pitch"] for idx in idxs]
@@ -145,8 +159,6 @@ class Dataset(Dataset):
 
         speakers = np.array(speakers)
         phones = pad_1D(phones)
-        pingyin_states = pad_1D(pingyin_states)
-        prosodic_structures = pad_1D(prosodic_structures)
         mels = pad_2D(mels)
         pitches = pad_1D(pitches)
         energies = pad_1D(energies)
@@ -159,8 +171,6 @@ class Dataset(Dataset):
             phone_full_label,
             speakers,
             phones,
-            pingyin_states,
-            prosodic_structures,
             text_lens,
             max(text_lens),
             mels,
@@ -195,6 +205,8 @@ class Dataset(Dataset):
 
 class TextDataset(Dataset):
     def __init__(self, filepath, preprocess_config):
+        self.dataset_name = preprocess_config["dataset"]
+        self.preprocessed_path = preprocess_config["path"]["preprocessed_path"]
         # self.cleaners = preprocess_config["preprocessing"]["text"]["text_cleaners"]
 
         (
@@ -209,6 +221,7 @@ class TextDataset(Dataset):
         #    )
         # ) as f:
         #    self.speaker_map = json.load(f)
+
         with open(preprocess_config["path"]["dict"]) as f:
             self.phone_dict = json.load(f)
 
@@ -247,9 +260,10 @@ class TextDataset(Dataset):
         speaker = self.speaker[idx]
         # speaker_id = self.speaker_map[speaker]
         phone_full_label = self.phone_full_label[idx]
-        phone, pingyin_state, prosodic_structure = self.text_to_sequence(
-            phone_full_label
-        )
+        #phone, pingyin_state, prosodic_structure = self.text_to_sequence(
+        #    phone_full_label
+        #)
+        phone = np.array([self.phone_dict[token] + 1 for token in phone_full_label])
         # phone = np.array(text_to_sequence(self.text[idx], self.cleaners))
 
         return (
@@ -257,44 +271,38 @@ class TextDataset(Dataset):
             speaker,
             phone_full_label,
             phone,
-            pingyin_state,
-            prosodic_structure,
         )
 
     def process_meta(self, filename):
-        with open(filename, "r", encoding="utf-8") as f:
-            name = []
-            speaker = []
-            phone = []
-            phone_full_label = []
-            for line in f.readlines():
-                n, s, p, r = line.strip("\n").split("|", 3)
-                name.append(n)
-                speaker.append(s)
-                phone.append(p)
-                phone_full_label.append(r)
-            return name, speaker, phone, phone_full_label
+        with open(
+            os.path.join(self.preprocessed_path, filename), "r", encoding="utf-8"
+        ) as f:
+            meta_json = json.load(f)
+        name = []
+        speaker = []
+        phone = []
+        phone_full_label = []
+        for n,s,t,_ in meta_json:
+            name.append(n)
+            speaker.append(s)
+            phone.append(t)
+            phone_full_label.append(t)
+        return name, speaker, phone, phone_full_label
 
     def collate_fn(self, data):
         ids = [d[0] for d in data]
         speakers = np.array([d[1] for d in data])
         phone_full_labels = [d[2] for d in data]
         phone = [d[3] for d in data]
-        pingyin_state = [d[4] for d in data]
-        prosodic_structure = [d[5] for d in data]
         text_lens = np.array([p.shape[0] for p in phone])
 
         phone = pad_1D(phone)
-        pingyin_state = pad_1D(pingyin_state)
-        prosodic_structure = pad_1D(prosodic_structure)
 
         return (
             ids,
             phone_full_labels,
             speakers,
             phone,
-            pingyin_state,
-            prosodic_structure,
             text_lens,
             max(text_lens),
         )
@@ -305,7 +313,7 @@ if __name__ == "__main__":
     import torch
     import yaml
     from torch.utils.data import DataLoader
-    from utils.utils import to_device
+    from utils.tools import to_device
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     preprocess_config = yaml.load(

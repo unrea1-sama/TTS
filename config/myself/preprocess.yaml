@@ -4,7 +4,7 @@ path:
   corpus_path: '/workspace/cpfs-data/biaobei/wav_mono_24k_16b_norm-6db'
   align_path: '/workspace/cpfs-data/biaobei/biaobei_aligned'
   preprocessed_path: "/workspace/cpfs-data/biaobei/biaobei_processed"
-  dict: "/workspace/cpfs-data/biaobei/biaobei_pingyin_glow-dict.json"
+  dict: "/workspace/cpfs-data/biaobei/biaobei_pingyin_fastspeech2-dict.json"
 
 preprocessing:
   val_size: 512

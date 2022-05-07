@@ -13,6 +13,11 @@ from tqdm import tqdm
 import audio as Audio
 
 
+def load_json(file):
+    with open(file) as f:
+        return json.load(f)
+
+
 class Preprocessor:
     def __init__(self, config):
         self.config = config
@@ -52,14 +57,18 @@ class Preprocessor:
             config["preprocessing"]["mel"]["mel_fmax"],
         )
 
-    def build_from_path(self):
+    def build_from_path(self, training_files, dev_files, test_files):
         os.makedirs((os.path.join(self.out_dir, "mel")), exist_ok=True)
         os.makedirs((os.path.join(self.out_dir, "pitch")), exist_ok=True)
         os.makedirs((os.path.join(self.out_dir, "energy")), exist_ok=True)
         os.makedirs((os.path.join(self.out_dir, "duration")), exist_ok=True)
 
+        training_json = load_json(training_files)
+        dev_json = load_json(dev_files)
+        test_json = load_json(test_files)
+
         print("Processing Data ...")
-        out = list()
+        out = {}
         n_frames = 0
         pitch_scaler = StandardScaler()
         energy_scaler = StandardScaler()
@@ -74,19 +83,17 @@ class Preprocessor:
                     # print("Processing {}".format(wav_path))
                     wav_name, _ = file.split(".")
                     tg_path = os.path.join(
-                        self.align_dir, "{}.TextGrid".format(wav_name)
+                        self.align_dir, "{}.json".format(wav_name)
                     )
-                    pingyin_full_path = os.path.join(root, "{}-fl.txt".format(wav_name))
+                    # pingyin_full_path = os.path.join(root, "{}-fl.txt".format(wav_name))
                     if os.path.exists(tg_path):
-                        ret = self.process_utterance(
-                            wav_path, tg_path, pingyin_full_path, wav_name
-                        )
+                        ret = self.process_utterance(wav_path, tg_path, wav_name)
                         if ret:
                             info, pitch, energy, n = ret
                             if len(pitch) and len(energy):
                                 pitch_scaler.partial_fit(pitch.reshape((-1, 1)))
                                 energy_scaler.partial_fit(energy.reshape((-1, 1)))
-                                out.append(info)
+                                out["{}.wav".format(info[0])] = info
                                 n_frames += n
                                 continue
                     print("Wrong file: {}".format(wav_path))
@@ -141,20 +148,32 @@ class Preprocessor:
             )
         )
 
-        random.shuffle(out)
-        out = [r for r in out if r is not None]
+        def export_json(json_file,all_out,export_name):
+            result = []
+            for path,_,_,_ in json_file:
+                _,name = os.path.split(path)
+                if all_out.get(name):
+                    result.append(all_out[name])
+            with open(export_name,"w") as f:
+                json.dump(result,f)
+
+        #random.shuffle(out)
+        #out = [r for r in out if r is not None]
 
         # Write metadata
-        #with open(os.path.join(self.out_dir, "train.txt"), "w", encoding="utf-8") as f:
+        # with open(os.path.join(self.out_dir, "train.txt"), "w", encoding="utf-8") as f:
         #    for m in out[self.val_size :]:
         #        f.write(m + "\n")
-        #with open(os.path.join(self.out_dir, "val.txt"), "w", encoding="utf-8") as f:
+        # with open(os.path.join(self.out_dir, "val.txt"), "w", encoding="utf-8") as f:
         #    for m in out[: self.val_size]:
         #        f.write(m + "\n")
 
+        export_json(training_json,out,os.path.join(self.out_dir, "train.json"))
+        export_json(dev_json,out,os.path.join(self.out_dir, "val.json"))
+        export_json(test_json,out,os.path.join(self.out_dir, "test.json"))
         return out
 
-    def process_utterance(self, wav_path, tg_path, pingyin_full_path, basename):
+    def process_utterance(self, wav_path, tg_path, basename):
         # wav_path = os.path.join(self.in_dir, speaker, "{}.wav".format(basename))
         # text_path = os.path.join(self.in_dir, speaker, "{}.lab".format(basename))
         # tg_path = os.path.join(
@@ -162,13 +181,17 @@ class Preprocessor:
         # )
         speaker = "1"
         # Get alignments
-        textgrid = tgt.io.read_textgrid(tg_path)
+        #textgrid = tgt.io.read_textgrid(tg_path)
+        with open(tg_path) as f:
+            text_grid = json.load(f)
         phone, duration, start, end = self.get_alignment(
-            textgrid.get_tier_by_name("phones")
+            text_grid['tiers'][1]['entries']
         )
-        text = "{" + " ".join(phone) + "}"
-        with open(pingyin_full_path) as f:
-            raw_text = "{" + f.readline().strip() + "}"
+        #print(phone,duration)
+
+        #text = "{" + " ".join(phone) + "}"
+        # with open(pingyin_full_path) as f:
+        #    raw_text = "{" + f.readline().strip() + "}"
         if start >= end:
             return None
 
@@ -176,11 +199,11 @@ class Preprocessor:
         end_frame = start_frame + sum(duration)
 
         # Read and trim wav files
-        wav, _ = librosa.load(wav_path,sr=self.sampling_rate)
+        wav, _ = librosa.load(wav_path, sr=self.sampling_rate)
         # wav = wav[
         #    int(self.sampling_rate * start) : int(self.sampling_rate * end)
         # ].astype(np.float32)
-        wav = wav.astype(np.float32) 
+        wav = wav.astype(np.float32)
 
         # Read raw text
         # with open(text_path, "r") as f:
@@ -193,7 +216,6 @@ class Preprocessor:
             frame_period=self.hop_length / self.sampling_rate * 1000,
         )
         pitch = pw.stonemask(wav.astype(np.float64), pitch, t, self.sampling_rate)
-
         pitch = pitch[start_frame:end_frame]
         if np.sum(pitch != 0) <= 1:
             return None
@@ -202,7 +224,6 @@ class Preprocessor:
         mel_spectrogram, energy = Audio.tools.get_mel_from_wav(wav, self.STFT)
         mel_spectrogram = mel_spectrogram[:, start_frame:end_frame]
         energy = energy[start_frame:end_frame]
-
         if self.pitch_phoneme_averaging:
             # perform linear interpolation
             nonzero_ids = np.where(pitch != 0)[0]
@@ -252,7 +273,7 @@ class Preprocessor:
         )
 
         return (
-            "|".join([basename, speaker, text, raw_text]),
+            [basename, speaker, phone, phone],
             self.remove_outlier(pitch),
             self.remove_outlier(energy),
             mel_spectrogram.shape[1],
@@ -266,9 +287,7 @@ class Preprocessor:
         start_time = 0
         end_time = 0
         end_idx = 0
-        for t in tier._objects:
-            s, e, p = t.start_time, t.end_time, t.text
-
+        for s,e,p in tier:
             # Trim leading silences
             if phones == []:
                 if p in sil_phones:
@@ -338,7 +357,9 @@ if __name__ == "__main__":
         default="config/myself/preprocess.yaml",
     )
     args = parser.parse_args()
-
+    training_files = "/workspace/cpfs-data/biaobei/biaobei_pingyin_glow-train.json"
+    dev_files = "/workspace/cpfs-data/biaobei/biaobei_pingyin_glow-dev.json"
+    test_files = "/workspace/cpfs-data/biaobei/biaobei_pingyin_glow-test.json"
     config = yaml.load(open(args.config, "r"), Loader=yaml.FullLoader)
     preprocessor = Preprocessor(config)
-    preprocessor.build_from_path()
+    preprocessor.build_from_path(training_files, dev_files, test_files)

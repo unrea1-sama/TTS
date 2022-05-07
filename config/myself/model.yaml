@@ -35,5 +35,6 @@ max_seq_len: 1000
 vocoder:
   model: "HiFi-GAN" # support 'HiFi-GAN', 'MelGAN'
   speaker: "universal" # support  'LJSpeech', 'universal'
+  vocoder_sr: 22050
 
-src_vocab: 90
+src_vocab: 91

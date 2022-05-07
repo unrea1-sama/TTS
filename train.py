@@ -25,7 +25,7 @@ def main(args, configs):
 
     # Get dataset
     dataset = Dataset(
-        "train.txt", preprocess_config, train_config, sort=True, drop_last=True
+        "train.json", preprocess_config, train_config, sort=True, drop_last=True
     )
     batch_size = train_config["optimizer"]["batch_size"]
     group_size = 4  # Set this larger than 1 to enable sorting in Dataset
@@ -123,19 +123,17 @@ def main(args, configs):
                         fig=fig,
                         tag="Training/step_{}_{}".format(step, tag),
                     )
-                    sampling_rate = preprocess_config["preprocessing"]["audio"][
-                        "sampling_rate"
-                    ]
+
                     log(
                         train_logger,
                         audio=wav_reconstruction,
-                        sampling_rate=sampling_rate,
+                        sampling_rate=model_config['vocoder']['vocoder_sr'],
                         tag="Training/step_{}_{}_reconstructed".format(step, tag),
                     )
                     log(
                         train_logger,
                         audio=wav_prediction,
-                        sampling_rate=sampling_rate,
+                        sampling_rate=model_config['vocoder']['vocoder_sr'],
                         tag="Training/step_{}_{}_synthesized".format(step, tag),
                     )
 

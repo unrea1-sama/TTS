@@ -20,7 +20,7 @@ def evaluate(model, step, configs, logger=None, vocoder=None):
 
     # Get dataset
     dataset = Dataset(
-        "val.txt", preprocess_config, train_config, sort=False, drop_last=False
+        "val.json", preprocess_config, train_config, sort=False, drop_last=False
     )
     batch_size = train_config["optimizer"]["batch_size"]
     loader = DataLoader(
@@ -69,17 +69,16 @@ def evaluate(model, step, configs, logger=None, vocoder=None):
             fig=fig,
             tag="Validation/step_{}_{}".format(step, tag),
         )
-        sampling_rate = preprocess_config["preprocessing"]["audio"]["sampling_rate"]
         log(
             logger,
             audio=wav_reconstruction,
-            sampling_rate=sampling_rate,
+            sampling_rate=model_config['vocoder']['vocoder_sr'],
             tag="Validation/step_{}_{}_reconstructed".format(step, tag),
         )
         log(
             logger,
             audio=wav_prediction,
-            sampling_rate=sampling_rate,
+            sampling_rate=model_config['vocoder']['vocoder_sr'],
             tag="Validation/step_{}_{}_synthesized".format(step, tag),
         )
 

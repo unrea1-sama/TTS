@@ -52,10 +52,10 @@ class Encoder(nn.Module):
 
         self.max_seq_len = config["max_seq_len"]
         self.d_model = d_model
-        self.src_pingyin_emb = nn.Embedding(3, 128, padding_idx=0)  # - | pad
-        self.src_prosodic_structure_emb = nn.Embedding(
-            6, 128, padding_idx=0
-        )  # #0,#1,#2,#3,#4,pad
+        # self.src_pingyin_emb = nn.Embedding(3, 128, padding_idx=0)  # - | pad
+        # self.src_prosodic_structure_emb = nn.Embedding(
+        #    6, 128, padding_idx=0
+        # )  # #0,#1,#2,#3,#4,pad
         self.src_word_emb = nn.Embedding(
             n_src_vocab, d_word_vec, padding_idx=Constants.PAD
         )
@@ -72,11 +72,9 @@ class Encoder(nn.Module):
                 for _ in range(n_layers)
             ]
         )
-        self.linear = nn.Linear(d_word_vec + 128 * 2, d_word_vec)
+        #self.linear = nn.Linear(d_word_vec + 128 * 2, d_word_vec)
 
-    def forward(
-        self, src_seq, pingyin_states, prosodic_structures, mask, return_attns=False
-    ):
+    def forward(self, src_seq, mask, return_attns=False):
 
         enc_slf_attn_list = []
         batch_size, max_len = src_seq.shape[0], src_seq.shape[1]
@@ -95,11 +93,9 @@ class Encoder(nn.Module):
             word_emb = self.src_word_emb(src_seq) + self.position_enc[
                 :, :max_len, :
             ].expand(batch_size, -1, -1)
-        pingyin_states_emb = self.src_pingyin_emb(pingyin_states)
-        prosodic_structures_emb = self.src_prosodic_structure_emb(prosodic_structures)
-        enc_output = self.linear(
-            torch.cat([word_emb, pingyin_states_emb, prosodic_structures_emb], dim=-1)
-        )
+        # pingyin_states_emb = self.src_pingyin_emb(pingyin_states)
+        # prosodic_structures_emb = self.src_prosodic_structure_emb(prosodic_structures)
+        enc_output = word_emb
 
         for enc_layer in self.layer_stack:
             enc_output, enc_slf_attn = enc_layer(

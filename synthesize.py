@@ -99,16 +99,12 @@ def synthesize(model, step, configs, vocoder, batchs, control_values):
                 phone_full_labels,
                 speakers,
                 phones,
-                pingyin_states,
-                prosodic_structures,
                 src_lens,
                 max_src_len,
             ) = batch
             output = model(
                 speakers,
                 phones,
-                pingyin_states,
-                prosodic_structures,
                 src_lens,
                 max_src_len,
                 p_control=pitch_control,
