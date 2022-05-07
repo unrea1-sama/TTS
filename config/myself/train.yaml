@@ -1,7 +1,7 @@
 path:
   ckpt_path: "./output/log/myself"
-  log_path: "./output/infer/myself"
-  result_path: "./output/infer/myself"
+  log_path: "./output/ckpt/myself"
+  result_path: "./output/result/myself"
 optimizer:
   batch_size: 64
   betas: [0.9, 0.98]
@@ -17,4 +17,4 @@ step:
   log_step: 100
   synth_step: 1000
   val_step: 1000
-  save_step: 100000
+  save_step: 10000

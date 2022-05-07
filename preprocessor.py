@@ -22,6 +22,7 @@ class Preprocessor:
         self.val_size = config["preprocessing"]["val_size"]
         self.sampling_rate = config["preprocessing"]["audio"]["sampling_rate"]
         self.hop_length = config["preprocessing"]["stft"]["hop_length"]
+        self.max_wav_value = config["preprocessing"]["audio"]["max_wav_value"]
 
         assert config["preprocessing"]["pitch"]["feature"] in [
             "phoneme_level",
@@ -87,7 +88,6 @@ class Preprocessor:
                                 energy_scaler.partial_fit(energy.reshape((-1, 1)))
                                 out.append(info)
                                 n_frames += n
-                                print("Processed {}".format(wav_path))
                                 continue
                     print("Wrong file: {}".format(wav_path))
 
@@ -145,12 +145,12 @@ class Preprocessor:
         out = [r for r in out if r is not None]
 
         # Write metadata
-        with open(os.path.join(self.out_dir, "train.txt"), "w", encoding="utf-8") as f:
-            for m in out[self.val_size :]:
-                f.write(m + "\n")
-        with open(os.path.join(self.out_dir, "val.txt"), "w", encoding="utf-8") as f:
-            for m in out[: self.val_size]:
-                f.write(m + "\n")
+        #with open(os.path.join(self.out_dir, "train.txt"), "w", encoding="utf-8") as f:
+        #    for m in out[self.val_size :]:
+        #        f.write(m + "\n")
+        #with open(os.path.join(self.out_dir, "val.txt"), "w", encoding="utf-8") as f:
+        #    for m in out[: self.val_size]:
+        #        f.write(m + "\n")
 
         return out
 
@@ -172,11 +172,15 @@ class Preprocessor:
         if start >= end:
             return None
 
+        start_frame = int(self.sampling_rate * start / self.hop_length)
+        end_frame = start_frame + sum(duration)
+
         # Read and trim wav files
-        wav, _ = librosa.load(wav_path)
-        wav = wav[
-            int(self.sampling_rate * start) : int(self.sampling_rate * end)
-        ].astype(np.float32)
+        wav, _ = librosa.load(wav_path,sr=self.sampling_rate)
+        # wav = wav[
+        #    int(self.sampling_rate * start) : int(self.sampling_rate * end)
+        # ].astype(np.float32)
+        wav = wav.astype(np.float32) 
 
         # Read raw text
         # with open(text_path, "r") as f:
@@ -190,14 +194,14 @@ class Preprocessor:
         )
         pitch = pw.stonemask(wav.astype(np.float64), pitch, t, self.sampling_rate)
 
-        pitch = pitch[: sum(duration)]
+        pitch = pitch[start_frame:end_frame]
         if np.sum(pitch != 0) <= 1:
             return None
 
         # Compute mel-scale spectrogram and energy
         mel_spectrogram, energy = Audio.tools.get_mel_from_wav(wav, self.STFT)
-        mel_spectrogram = mel_spectrogram[:, : sum(duration)]
-        energy = energy[: sum(duration)]
+        mel_spectrogram = mel_spectrogram[:, start_frame:end_frame]
+        energy = energy[start_frame:end_frame]
 
         if self.pitch_phoneme_averaging:
             # perform linear interpolation
