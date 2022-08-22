@@ -385,7 +385,13 @@ class MultiPeriodDiscriminator(torch.nn.Module):
 
         return y_d_rs, y_d_gs, fmap_rs, fmap_gs
 
+use_correct_log_duration = True
 
+def duration_to_log_duration(dur):
+  return torch.log(dur+1)
+
+def log_duration_to_duration(log_dur):
+  return torch.clamp(torch.exp(log_dur) -1,min=0)
 
 class SynthesizerTrn(nn.Module):
   """
@@ -485,7 +491,10 @@ class SynthesizerTrn(nn.Module):
       l_length = self.dp(x, x_mask, w, g=g)
       l_length = l_length / torch.sum(x_mask)
     else:
-      logw_ = torch.log(w + 1e-6) * x_mask
+      if use_correct_log_duration:
+        logw_ = duration_to_log_duration(w)
+      else:
+        logw_ = torch.log(w + 1e-6) * x_mask
       logw = self.dp(x, x_mask, g=g)
       l_length = torch.sum((logw - logw_)**2, [1,2]) / torch.sum(x_mask) # for averaging 
 
@@ -508,9 +517,13 @@ class SynthesizerTrn(nn.Module):
       logw = self.dp(x, x_mask, g=g, reverse=True, noise_scale=noise_scale_w)
     else:
       logw = self.dp(x, x_mask, g=g)
-    w = torch.exp(logw) * x_mask * length_scale
-    w_ceil = torch.ceil(w)
-    y_lengths = torch.clamp_min(torch.sum(w_ceil, [1, 2]), 1).long()
+    if use_correct_log_duration:
+      w_ceil = log_duration_to_duration(logw)* x_mask*length_scale
+      w_ceil = torch.round(w_ceil)
+    else:
+      w = torch.exp(logw) * x_mask * length_scale
+      w_ceil = torch.ceil(w)
+    y_lengths = torch.clamp_min(torch.sum(w_ceil, [1, 2]), 0).long()
     y_mask = torch.unsqueeze(commons.sequence_mask(y_lengths, None), 1).to(x_mask.dtype)
     attn_mask = torch.unsqueeze(x_mask, 2) * torch.unsqueeze(y_mask, -1)
     attn = commons.generate_path(w_ceil, attn_mask)

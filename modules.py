@@ -255,15 +255,28 @@ class ResBlock2(torch.nn.Module):
         for l in self.convs:
             remove_weight_norm(l)
 
+use_correct_log_duration = True
+
+def duration_to_log_duration(dur):
+  return torch.log(dur+1)
+
+def log_duration_to_duration(log_dur):
+  return torch.clamp(torch.exp(log_dur) -1,min=0)
 
 class Log(nn.Module):
   def forward(self, x, x_mask, reverse=False, **kwargs):
     if not reverse:
-      y = torch.log(torch.clamp_min(x, 1e-5)) * x_mask
+      if use_correct_log_duration:
+        y = duration_to_log_duration(x)*x_mask
+      else:
+        y = torch.log(torch.clamp_min(x, 1e-5)) * x_mask
       logdet = torch.sum(-y, [1, 2])
       return y, logdet
     else:
-      x = torch.exp(x) * x_mask
+      if use_correct_log_duration:
+        x = log_duration_to_duration(x)*x_mask
+      else:
+        x = torch.exp(x) * x_mask
       return x
     
 

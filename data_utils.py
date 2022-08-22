@@ -398,6 +398,7 @@ class DistributedBucketSampler(torch.utils.data.distributed.DistributedSampler):
                 self.boundaries.pop(i + 1)
 
         num_samples_per_bucket = []
+        # makes number of samples in each buckets is multiple of total_batch_size
         for i in range(len(buckets)):
             len_bucket = len(buckets[i])
             total_batch_size = self.num_replicas * self.batch_size
