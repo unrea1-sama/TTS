@@ -76,7 +76,8 @@ class WeTTSDataset(torch.utils.data.Dataset):
             wav = torchaudio.functional.resample(wav, original_sr,
                                                  self.sr).clamp(min=-1, max=1)
         # truncate to make sure wav has same length as spectrogram
-        wav = wav[:, :wav.size(1) // 256 * 256]
+        if wav.size(1) > self.hop_size:
+            wav = wav[:, :wav.size(1) // self.hop_size * self.hop_size]
         return wav
 
     def get_spec(self, wav):

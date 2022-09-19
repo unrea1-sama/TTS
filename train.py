@@ -51,7 +51,7 @@ def run(rank, n_gpus, hps):
     if rank == 0:
         logger = utils.get_logger(hps.model_dir)
         logger.info(hps)
-        utils.check_git_hash(hps.model_dir)
+        #utils.check_git_hash(hps.model_dir)
         writer = SummaryWriter(log_dir=hps.model_dir)
         writer_eval = SummaryWriter(
             log_dir=os.path.join(hps.model_dir, "eval"))
@@ -77,7 +77,7 @@ def run(rank, n_gpus, hps):
                                              shuffle=True)
     #collate_fn = TextAudioCollate()
     train_loader = DataLoader(train_dataset,
-                              num_workers=8,
+                              num_workers=0,
                               shuffle=False,
                               pin_memory=True,
                               collate_fn=collate,
@@ -89,8 +89,8 @@ def run(rank, n_gpus, hps):
                                     hps.data.filter_length,
                                     hps.data.hop_length, hps.data.win_length)
         eval_loader = DataLoader(eval_dataset,
-                                 num_workers=8,
-                                 shuffle=False,
+                                 num_workers=0,
+                                 shuffle=True,
                                  batch_size=hps.train.batch_size,
                                  pin_memory=True,
                                  drop_last=False,
@@ -326,6 +326,7 @@ def evaluate(hps, generator, eval_loader, writer_eval):
             spec_lengths = spec_lengths[idx:idx + 1]
             y = y[idx:idx + 1]
             y_lengths = y_lengths[idx:idx + 1]
+            speakers = speakers[idx:idx + 1]
             break
         y_hat, attn, mask, *_ = generator.module.infer(x,
                                                        x_lengths,
@@ -344,7 +345,8 @@ def evaluate(hps, generator, eval_loader, writer_eval):
             hps.data.mel_fmax)
         image_dict = {
             "eval/predicted_mel":
-            utils.plot_spectrogram_to_numpy(y_hat_mel[0].cpu().numpy())
+            utils.plot_spectrogram_to_numpy(
+                (y_hat_mel[0] * mask[0]).cpu().numpy())
         }
         audio_dict = {"eval/predicted_audio": y_hat[0, :, :y_hat_lengths[0]]}
         image_dict.update({
